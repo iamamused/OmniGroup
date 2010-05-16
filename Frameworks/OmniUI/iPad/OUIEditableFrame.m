@@ -956,6 +956,7 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
 {
     _loupe.mode = OUILoupeOverlayNone;
     [self _setSolidCaret:-1];
+	flags.showingEditMenu = 1;
 }
 
 - (id <NSObject>)attribute:(NSString *)attr inRange:(OUEFTextRange *)r;
@@ -1103,7 +1104,7 @@ static void notifyAfterMutate(OUIEditableFrame *self, SEL _cmd)
 	// What was broken? I modified this to allow the menu to appear on single selections as
 	// well but it shouldn't appear on the first tap, only a delayed tap or a re-tap in the same
 	// location. Always is good for now though.
-	flags.showingEditMenu = ( selection != nil && (drawnFrame && !flags.textNeedsUpdate) /*![selection isEmpty]*/ );
+	flags.showingEditMenu = flags.showingEditMenu && ( selection != nil && (drawnFrame && !flags.textNeedsUpdate) /*![selection isEmpty]*/ );
     
     [super layoutSubviews];
     if (flags.selectionNeedsUpdate && !flags.textNeedsUpdate)
@@ -1228,7 +1229,7 @@ static void notifyAfterMutate(OUIEditableFrame *self, SEL _cmd)
         [_selectionContextMenu setTargetRect:selectionRectangle inView:self];
         
         if (!alreadyVisible) {
-            DEBUG_TEXT(@"Showing context menu");
+            DEBUG_TEXT(@"Context menu wasn't visible. Show it.");
             [_selectionContextMenu setMenuVisible:YES animated:YES];
         }
     }
@@ -2707,6 +2708,10 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 - (void)_activeTap:(UITapGestureRecognizer *)r;
 {
     DEBUG_TEXT(@" -> %@", r);
+
+	// Hide the menu if it's visible.
+	flags.showingEditMenu = 0;
+	
     CGPoint p = [r locationInView:self];
     OUEFTextPosition *pp = (OUEFTextPosition *)[self closestPositionToPoint:p];
 	
@@ -2715,6 +2720,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     if (pp) {
         if (r.numberOfTapsRequired > 1 && selection) {
             [self setSelectedTextRange:[[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward]];
+			flags.showingEditMenu = 1;
         } else {
 			// UITextView selects beginning and end of word only on single tap.
 			int idx = pp.index;
@@ -2727,6 +2733,14 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			OUEFTextPosition *caret = [[OUEFTextPosition alloc] initWithIndex:idx];
 			OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithStart:caret end:caret];
 			[caret release];
+			
+			int selStart = [(OUEFTextPosition *)selection.start index];
+			int selEnd = [(OUEFTextPosition *)selection.end index];
+			if (selStart == idx && selEnd == idx ) {
+				// Show the edit menu if we're re-tapping in the same location.
+				flags.showingEditMenu = 1;
+			} 
+			
             [self setSelectedTextRange:newSelection];
             [newSelection release];
         }
@@ -2786,6 +2800,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     if (state == UIGestureRecognizerStateEnded || state == UIGestureRecognizerStateCancelled) {
         _loupe.mode = OUILoupeOverlayNone;
         [self _setSolidCaret:-1];
+		flags.showingEditMenu = 1;
         return;
     }
 }
