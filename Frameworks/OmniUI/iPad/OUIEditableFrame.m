@@ -33,7 +33,7 @@
 
 RCS_ID("$Id$");
 
-#if 0 && defined(DEBUG)
+#if 1 && defined(DEBUG)
     #define DEBUG_TEXT(format, ...) NSLog(@"TEXT: " format, ## __VA_ARGS__)
 #else
     #define DEBUG_TEXT(format, ...)
@@ -894,7 +894,7 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     
     menuController.menuItems = [NSArray arrayWithObjects:items count:1];
     
-    [items[0] release];
+    //[items[0] release];
 }
 
 - (void)thumbBegan:(OUITextThumb *)thumb;
@@ -1098,7 +1098,12 @@ static void notifyAfterMutate(OUIEditableFrame *self, SEL _cmd)
 
 - (void)layoutSubviews
 {
-    /* FIXME */ flags.showingEditMenu = ( selection != nil && ![selection isEmpty] );
+	DEBUG_TEXT(@"Selection: %@ and drawnFrame: %d", selection, drawnFrame ? 1 : 0);
+    /* FIXME */ 
+	// What was broken? I modified this to allow the menu to appear on single selections as
+	// well but it shouldn't appear on the first tap, only a delayed tap or a re-tap in the same
+	// location. Always is good for now though.
+	flags.showingEditMenu = ( selection != nil && (drawnFrame && !flags.textNeedsUpdate) /*![selection isEmpty]*/ );
     
     [super layoutSubviews];
     if (flags.selectionNeedsUpdate && !flags.textNeedsUpdate)
@@ -1177,12 +1182,16 @@ static void notifyAfterMutate(OUIEditableFrame *self, SEL _cmd)
     BOOL suppressContextMenu = (_loupe != nil && _loupe.mode != OUILoupeOverlayNone) ||
                                (_textInspector != nil && _textInspector.isVisible);
     if (!flags.showingEditMenu || suppressContextMenu) {
+		DEBUG_TEXT(@"Hide COntext Menu");
+
         if (_selectionContextMenu) {
             [_selectionContextMenu setMenuVisible:NO animated:( suppressContextMenu? NO : YES )];
             [_selectionContextMenu autorelease];
             _selectionContextMenu = nil;
         }
     } else {
+		DEBUG_TEXT(@"Setup context menu");
+
         BOOL alreadyVisible;
         if (!_selectionContextMenu) {
             UIMenuController *menuController = [UIMenuController sharedMenuController];
@@ -1193,17 +1202,29 @@ static void notifyAfterMutate(OUIEditableFrame *self, SEL _cmd)
             alreadyVisible = [_selectionContextMenu isMenuVisible];
         }
         
+		
+		DEBUG_TEXT(@"Context menu visible? %@: %@", alreadyVisible ? @"YES" : @"NO", [UIMenuController sharedMenuController].menuItems );
+
         /* Get the bounding rect of our selection */
         CGRect selectionRectangle = [self _boundsOfRange:selection];
-        
-        /* Shift from layout coordinates to rendering coordinates */
-        selectionRectangle.origin.x += layoutOrigin.x;
-        selectionRectangle.origin.y += layoutOrigin.y;
-        
-        /* Shift from rendering coordinates to view/bounds coordinates */
-        selectionRectangle = [self convertRectToRenderingSpace:selectionRectangle]; // note method is confusingly named
-        selectionRectangle = CGRectIntegral(selectionRectangle);
-        
+        DEBUG_TEXT(@"Selection Rectangle PRE: %f,%f,%f,%f", selectionRectangle.origin.x, selectionRectangle.origin.y, selectionRectangle.size.width, selectionRectangle.size.height);
+
+		// The _boundsOfRange returns a different coordinate ssytem for an empty selection.
+		// I haven't traced through to see how it affects other areas so for now
+		// we just won't adjust if it's an empty selection.
+		// This allows the menu to appear on a single caret as well.
+		if (![selection isEmpty]) {
+			/* Shift from layout coordinates to rendering coordinates */
+			selectionRectangle.origin.x += layoutOrigin.x;
+			selectionRectangle.origin.y += layoutOrigin.y;
+		}
+		
+		/* Shift from rendering coordinates to view/bounds coordinates */
+		selectionRectangle = [self convertRectToRenderingSpace:selectionRectangle]; // note method is confusingly named
+		selectionRectangle = CGRectIntegral(selectionRectangle);
+
+		DEBUG_TEXT(@"Selection Rectangle POST: %f,%f,%f,%f", selectionRectangle.origin.x, selectionRectangle.origin.y, selectionRectangle.size.width, selectionRectangle.size.height);
+
         [_selectionContextMenu setTargetRect:selectionRectangle inView:self];
         
         if (!alreadyVisible) {
