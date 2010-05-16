@@ -891,10 +891,8 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     
     items[0] = [[UIMenuItem alloc] initWithTitle:@"Style" action:@selector(_inspectSelection:)];
 //    items[1] = [[UIMenuItem alloc] initWithTitle:@"\u00B6" action:@selector(_inspectParagraph:)];
-    
     menuController.menuItems = [NSArray arrayWithObjects:items count:1];
-    
-    //[items[0] release];
+    [items[0] release];
 }
 
 - (void)thumbBegan:(OUITextThumb *)thumb;
@@ -2715,11 +2713,15 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     CGPoint p = [r locationInView:self];
     OUEFTextPosition *pp = (OUEFTextPosition *)[self closestPositionToPoint:p];
 	
-    //NSLog(@"active with state %d at %@ with required taps %d, number of touches %d", r.state, pp, [r numberOfTapsRequired], [r numberOfTouches]);
+    DEBUG_TEXT(@"active with state %d at %@ with required taps %d, number of touches %d", r.state, pp, [r numberOfTapsRequired], [r numberOfTouches]);
 
     if (pp) {
         if (r.numberOfTapsRequired > 1 && selection) {
-            [self setSelectedTextRange:[[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward]];
+			UITextRange *r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
+			if (r == nil) {
+				r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionBackward];
+			}
+            [self setSelectedTextRange:r];
 			flags.showingEditMenu = 1;
         } else {
 			// UITextView selects beginning and end of word only on single tap.
@@ -2730,9 +2732,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 				int end = [(OUEFTextPosition *)word.end index];
 				idx = (idx <= start + ( ( end - start ) / 2 )) ? start : end;
 			}
-			OUEFTextPosition *caret = [[OUEFTextPosition alloc] initWithIndex:idx];
-			OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithStart:caret end:caret];
-			[caret release];
+			OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithRange:NSMakeRange(idx, 0) generation:generation];
 			
 			int selStart = [(OUEFTextPosition *)selection.start index];
 			int selEnd = [(OUEFTextPosition *)selection.end index];
@@ -2755,7 +2755,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     CGPoint touchPoint = [r locationInView:self];
     OUEFTextPosition *pp = (OUEFTextPosition *)[self closestPositionToPoint:touchPoint];
     
-    //NSLog(@"inspect with state %d at %@ with required taps %d, number of touches %d", r.state, pp, [r numberOfTapsRequired], [r numberOfTouches]);
+    DEBUG_TEXT(@"inspect with state %d at %@ with required taps %d, number of touches %d", r.state, pp, [r numberOfTapsRequired], [r numberOfTouches]);
     
     UIGestureRecognizerState state = r.state;
     
