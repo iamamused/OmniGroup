@@ -64,6 +64,7 @@
         unsigned solidCaret: 1;
         unsigned showingEditMenu: 1;
 		unsigned doubleTapInspectSelection: 1;
+		unsigned selectionInspectSnap: 1;
     } flags;
     
     // Range selection adjustment and display

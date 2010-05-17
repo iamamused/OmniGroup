@@ -2773,6 +2773,10 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 	flags.doubleTapInspectSelection = 0;
 }
 
+- (void)_disableSelectionInspectSnap {
+	flags.selectionInspectSnap = 0;
+}
+
 /* Press-and-hold calls this */
 - (void)_inspectTap:(UILongPressGestureRecognizer *)r;
 {
@@ -2812,7 +2816,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			UITextRange *newSelection = nil;
 			
 			/* This by-word selection is only a rough approximation to the by-word selection that UITextView does */
-			if ([r numberOfTapsRequired] > 1)
+			if ([r numberOfTapsRequired] > 1) // I don't think this is posible.
 				newSelection = [[self tokenizer] rangeEnclosingPosition:pp withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
 			
 			if (newSelection) {
@@ -2822,8 +2826,9 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 				[self setSelectedTextRange:newSelection];
 				[newSelection release];
 			}
+			
 		} else if (selection && _selectionMinimum) {
-			//Fake the thumb drag by adjusting the range.
+			// Fake the thumb drag by adjusting the range.
 			// Double tap selection and drag maintains at least the word as the selection.
 			// and doesn't care about which handle is dragged.
 			OUEFTextPosition *start = (OUEFTextPosition *)[_selectionMinimum start];
@@ -2842,6 +2847,14 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			OUEFTextRange *range = [[OUEFTextRange alloc] initWithRange:NSMakeRange([start index], [end index] - [start index]) generation:generation];
 			[self setSelectedTextRange:range];
 			[range release];
+			
+			flags.selectionInspectSnap = 1;
+			// Start a delayed selector to trigger word snap.
+			// The the motion is quick and not paused at teh end it should select the word boundary.
+			// TODO: The delay on the selector should be adjusted.  
+			[OUIEditableFrame cancelPreviousPerformRequestsWithTarget:self selector:@selector(_disableSelectionInspectSnap) object:nil];
+			[self performSelector:@selector(_disableSelectionInspectSnap) withObject:nil afterDelay: 2.0f];
+			
 		}
     }
     
@@ -2857,6 +2870,38 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 	flags.doubleTapInspectSelection = 0;
 	
     if (state == UIGestureRecognizerStateEnded || state == UIGestureRecognizerStateCancelled) {
+		
+		// TODO this should be animated but I'm not sure how to deal with the 
+		// selection as it's drawn in drawRect.
+		if (flags.selectionInspectSnap) {
+			// TODO this should adjust for a forward/backwards direction on each end
+			// depending on which way the user was moving.
+			OUEFTextPosition *start = (OUEFTextPosition *)[selection start];
+			OUEFTextPosition *end = (OUEFTextPosition *)[selection end];
+
+			if ([self comparePosition:pp toPosition:start] == NSOrderedSame) {
+				// start
+				if ([[self tokenizer] isPosition:[selection start] withinTextUnit:UITextGranularityWord inDirection:UITextStorageDirectionBackward]) {
+					UITextRange *word = [[self tokenizer] rangeEnclosingPosition:pp withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionBackward];
+					if (word) {
+						start = (OUEFTextPosition *)[word start];
+					}
+				}
+			} else if ([self comparePosition:pp toPosition:end] == NSOrderedSame) {
+				// end
+				if ([[self tokenizer] isPosition:[selection end] withinTextUnit:UITextGranularityWord inDirection:UITextStorageDirectionForward]) {
+					UITextRange *word = [[self tokenizer] rangeEnclosingPosition:pp withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
+					if (word) {
+						end = (OUEFTextPosition *)[word end];
+					}
+				}
+			}
+			
+			OUEFTextRange *range = [[OUEFTextRange alloc] initWithRange:NSMakeRange([start index], [end index] - [start index]) generation:generation];
+			[self setSelectedTextRange:range];
+			[range release];
+		}
+		
         _loupe.mode = OUILoupeOverlayNone;
         [self _setSolidCaret:-1];
 		flags.showingEditMenu = 1;
@@ -3071,9 +3116,9 @@ static BOOL includeRectsInBound(CGPoint p, CGFloat width, CGFloat trailingWS, CG
         // Default to filling our bounds width and growing "infinitely" high.
         CGSize frameSize = self.bounds.size;
         
-        if (CGSizeEqualToSize(layoutSize, CGSizeZero))
+        if (CGSizeEqualToSize(layoutSize, CGSizeZero)) {
             frameSize.height = 10000;
-        else {
+        } else {
             // Owner would like us to constrain along width or height.
             if (layoutSize.width > 0)
                 frameSize.width = layoutSize.width;
