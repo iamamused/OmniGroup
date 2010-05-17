@@ -293,10 +293,10 @@ static CGFloat leftRunBoundary(CTLineRef line, CTRunRef run)
 }
 
 /* Macros for invoking the callback (usually with a 0 for the trailing whitespace width) */
-#define RECT_tww(start, end, tww, flags) do{ CGFloat start_ = (start); BOOL shouldContinue = (*cb)( (CGPoint){ lineOrigin.x + start_, lineOrigin.y }, (end) - start_, tww, ascent, descent, (flags), ctxt); if (!shouldContinue) return -1; rectsIssued ++; }while(0)
+#define RECT_tww(start, end, tww, flags) do{ CGFloat start_ = (start); BOOL shouldContinue = (*cb)( (CGPoint){ lineOrigin.x + start_, lineOrigin.y }, (end) - start_, tww, ascentOverride, descent, (flags), ctxt); if (!shouldContinue) return -1; rectsIssued ++; }while(0)
 #define RECT(start, end, flags) RECT_tww(start, end, 0, flags)
 
-static unsigned int rectanglesInLine(CTLineRef line, CGPoint lineOrigin, NSRange r, unsigned boundaryFlags, rectanglesInRangeCallback cb, void *ctxt)
+static unsigned int rectanglesInLine(CTLineRef line, CGPoint lineOrigin, CGFloat ascentOverride, NSRange r, unsigned boundaryFlags, rectanglesInRangeCallback cb, void *ctxt)
 {
     CFArrayRef runs = CTLineGetGlyphRuns(line);
     CFIndex runCount = CFArrayGetCount(runs);
@@ -502,15 +502,16 @@ static void rectanglesInRange(CTFrameRef frame, NSRange r, rectanglesInRangeCall
         CTFrameGetLineOrigins(frame, (CFRange){ lineIndex, 1 }, lineOrigin);
         
         BOOL keepGoing;
-        
+
+		if (yPreceedingLine > 0) {
+			ascent = yPreceedingLine - lineOrigin[0].y - descentPreceedingLine;
+		}
+		
         if (! (flags & (rectwalker_LeftIsRangeBoundary|rectwalker_RightIsRangeBoundary)) ) {
             CGFloat trailingWhitespace = (flags & rectwalker_RightIsLineWrap)? CTLineGetTrailingWhitespaceWidth(line) : 0;
-			if (yPreceedingLine > 0) {
-				ascent = yPreceedingLine - lineOrigin[0].y + descentPreceedingLine;
-			}
             keepGoing = (*cb)( (CGPoint){ lineOrigin[0].x + left, lineOrigin[0].y }, right - left, trailingWhitespace, ascent, descent, flags, ctxt);
         } else {
-            int parts = rectanglesInLine(line, lineOrigin[0], r, flags, cb, ctxt);
+            int parts = rectanglesInLine(line, lineOrigin[0], ascent, r, flags, cb, ctxt);
             if (parts < 0)
                 keepGoing = NO;
             else {
