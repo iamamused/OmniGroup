@@ -33,7 +33,7 @@
 
 RCS_ID("$Id$");
 
-#if 1 && defined(DEBUG)
+#if 0 && defined(DEBUG)
     #define DEBUG_TEXT(format, ...) NSLog(@"TEXT: " format, ## __VA_ARGS__)
 #else
     #define DEBUG_TEXT(format, ...)
@@ -456,6 +456,9 @@ static void rectanglesInRange(CTFrameRef frame, NSRange r, rectanglesInRangeCall
     if (firstLine < 0 || firstLine >= lineCount)
         return;
     
+	CGFloat yPreceedingLine = -1.0f;
+	CGFloat descentPreceedingLine = -1.0f;
+	
     for (CFIndex lineIndex = firstLine; lineIndex < lineCount; lineIndex ++) {
         CTLineRef line = CFArrayGetValueAtIndex(lines, lineIndex);
         CFRange lineRange = CTLineGetStringRange(line);
@@ -502,6 +505,9 @@ static void rectanglesInRange(CTFrameRef frame, NSRange r, rectanglesInRangeCall
         
         if (! (flags & (rectwalker_LeftIsRangeBoundary|rectwalker_RightIsRangeBoundary)) ) {
             CGFloat trailingWhitespace = (flags & rectwalker_RightIsLineWrap)? CTLineGetTrailingWhitespaceWidth(line) : 0;
+			if (yPreceedingLine > 0) {
+				ascent = yPreceedingLine - lineOrigin[0].y + descentPreceedingLine;
+			}
             keepGoing = (*cb)( (CGPoint){ lineOrigin[0].x + left, lineOrigin[0].y }, right - left, trailingWhitespace, ascent, descent, flags, ctxt);
         } else {
             int parts = rectanglesInLine(line, lineOrigin[0], r, flags, cb, ctxt);
@@ -512,6 +518,9 @@ static void rectanglesInRange(CTFrameRef frame, NSRange r, rectanglesInRangeCall
             }
         }
         
+		yPreceedingLine = lineOrigin[0].y;
+		descentPreceedingLine = descent;
+				
         if (!keepGoing || lastLine)
             break;
     }
@@ -2868,7 +2877,7 @@ static BOOL addRectsToPath(CGPoint p, CGFloat width, CGFloat trailingWS, CGFloat
     
     CGContextAddRect(r->ctxt, highlightRect);
     
-    // NSLog(@"Adding rect(me) -> %@ (raw %@)", NSStringFromCGRect(highlightRect), NSStringFromCGPoint(p));
+    DEBUG_TEXT(@"Adding rect(me) -> %@ (raw %@)", NSStringFromCGRect(highlightRect), NSStringFromCGPoint(p));
     
     return YES;
 }
@@ -2906,11 +2915,14 @@ static BOOL addRectsToPath(CGPoint p, CGFloat width, CGFloat trailingWS, CGFloat
         CGContextFillPath(ctx);
 
     
-        CGContextBeginPath(ctx);
+		// This double highlihgts the actual word rects. Don't like it so we'll turn in off for now.
+        /*
+		CGContextBeginPath(ctx);
         ctxt.leftEdge = 1e10;
         ctxt.rightEdge = -1e10;
         rectanglesInRange(drawnFrame, selectionRange, addRectsToPath, &ctxt);
         CGContextFillPath(ctx);
+		*/
     }
 }
 
