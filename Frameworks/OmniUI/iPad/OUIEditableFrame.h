@@ -113,9 +113,9 @@
 
 
 /* These are the interface from the thumbs to our selection machinery */
-- (void)thumbBegan:(OUITextThumb *)thumb;
-- (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt;
-- (void)thumbEnded:(OUITextThumb *)thumb normally:(BOOL)normalEnd;
+- (void)thumbBegan:(OUITextThumb *)thumb caretRect:(CGRect)caretRect;
+- (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt caretRect:(CGRect)caretRect;
+- (void)thumbEnded:(OUITextThumb *)thumb normally:(BOOL)normalEnd caretRect:(CGRect)caretRect;
 
 /* These are the interface from the inspectable spans */
 - (id <NSObject>)attribute:(NSString *)attr inRange:(OUEFTextRange *)r;

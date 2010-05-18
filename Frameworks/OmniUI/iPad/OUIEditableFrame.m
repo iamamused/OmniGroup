@@ -907,7 +907,7 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     [items[0] release];
 }
 
-- (void)thumbBegan:(OUITextThumb *)thumb;
+- (void)thumbBegan:(OUITextThumb *)thumb caretRect:(CGRect)caretRect;
 {
     if (!_loupe) {
         _loupe = [[OUILoupeOverlay alloc] initWithFrame:[self frame]];
@@ -918,9 +918,9 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     [self _setSolidCaret:1];
 }
 
-- (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt;
+- (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt caretRect:(CGRect)caretRect;
 {
-    _loupe.touchPoint = pt;
+    _loupe.touchPoint = caretRect.origin;
     _loupe.mode = OUILoupeOverlayRectangle;
     
     OUEFTextPosition *pp;
@@ -962,7 +962,7 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     }
 }
 
-- (void)thumbEnded:(OUITextThumb *)thumb normally:(BOOL)normalEnd;
+- (void)thumbEnded:(OUITextThumb *)thumb normally:(BOOL)normalEnd caretRect:(CGRect)caretRect;
 {
     _loupe.mode = OUILoupeOverlayNone;
     [self _setSolidCaret:-1];
