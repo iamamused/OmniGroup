@@ -22,6 +22,7 @@ typedef enum {
 @private
     OUILoupeMode _mode;           // What kind of loupe we're displaying
     CGPoint _touchPoint;          // The point (in our subject view's bounds coordinates) to display
+    CGPoint _anchorPoint;         // The point (in our subject view's bounds coordinates) to anchor the loupe's center point
     CGFloat _scale;               // How much to magnify the subject view
     OUIScalingView *subjectView;  // If not set, self.superview is used for the subject of display
     
@@ -36,6 +37,10 @@ typedef enum {
 @property(readwrite,nonatomic,assign) OUILoupeMode mode;
 @property(readwrite,nonatomic,assign) CGFloat scale;
 @property(readwrite,nonatomic,assign) OUIScalingView *subjectView;
+
+// All ow anchor at non-touchpoint.
+// TODO it would be good to be able to alter which point of the view is anchored with  anchorAt:OUILoupeOverlayAnchorTopLeft, etc.
+- (void)setTouchPoint:(CGPoint)touchPoint forAnchorPoint:(CGPoint)anchorPoint;
 
 @end
 

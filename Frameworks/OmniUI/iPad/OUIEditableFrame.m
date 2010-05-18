@@ -920,7 +920,17 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
 
 - (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt caretRect:(CGRect)caretRect;
 {
-    _loupe.touchPoint = caretRect.origin;
+	CGRect thumbCaretRect;
+
+	if ([thumb isEqual:startThumb]) {
+		thumbCaretRect = [self caretRectForPosition:[selection start]];
+	} else if ([thumb isEqual:endThumb]) {
+		thumbCaretRect = [self caretRectForPosition:[selection end]];		
+	}
+
+	CGPoint center = CGPointMake(CGRectGetMidX(thumbCaretRect), CGRectGetMidY(thumbCaretRect));
+	CGPoint top    = CGPointMake(CGRectGetMidX(thumbCaretRect), CGRectGetMinY(thumbCaretRect));
+	[_loupe setTouchPoint:center forAnchorPoint:top];
     _loupe.mode = OUILoupeOverlayRectangle;
     
     OUEFTextPosition *pp;
@@ -2768,14 +2778,14 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
             [self setSelectedTextRange:newSelection];
             [newSelection release];
 			
-			flags.doubleTapInspectSelection = 1;
-			// Start a delayed selector to modify the double tap inspection action. 
-			// TODO: The delay on the selector should be slighty longer than the delay between double taps.  
-			[self performSelector:@selector(_disableDoubleTapInspectSelection) withObject:nil afterDelay: 1.0];
 
         }
     }
-    
+
+	// Start a delayed selector to modify the double tap inspection action. 
+	// TODO: The delay on the selector should be slighty longer than the delay between double taps.  
+	[self performSelector:@selector(_disableDoubleTapInspectSelection) withObject:nil afterDelay: 1.0];
+	
 }
 
 - (void)_disableDoubleTapInspectSelection {
@@ -2803,7 +2813,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
             [[[[self window] subviews] lastObject] addSubview:_loupe];
        }
 
-		if (flags.doubleTapInspectSelection) {
+		if (flags.doubleTapInspectSelection == 1) {
 			UITextRange *r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
 			if (r == nil) {
 				r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionBackward];
@@ -2812,16 +2822,24 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			// Keep the word as a minimum selection range for the drag interactions on double-tap-hold
 			[_selectionMinimum release];
 			_selectionMinimum = [r retain];
+			flags.doubleTapInspectSelection = 0;
         } else {
+			// if there's a selection and we long press we want to re-position the caret.
+			OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithStart:pp end:pp];
+            [self setSelectedTextRange:newSelection];
+            [newSelection release];			
 			[self _setSolidCaret:1];
 		}
     }
     
     // We want to update the loupe's touch point before the mode, so that when it's brought on screen it doesn't animate distractingly out from some other location.
-    _loupe.touchPoint = touchPoint;
     
     if (state == UIGestureRecognizerStateChanged) {
         if (selection && [selection isEmpty]) {
+
+			// Loupe touchPoint and anchorPoint will be the same for caret selection.
+			_loupe.touchPoint = touchPoint;
+
 			UITextRange *newSelection = nil;
 			
 			/* This by-word selection is only a rough approximation to the by-word selection that UITextView does */
@@ -2846,11 +2864,19 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			if ([self comparePosition:pp toPosition:start] == NSOrderedAscending) {
 				// pos < start
 				start = pp;
-				//[self thumbMoved:startThumb targetPosition:touchPoint];
+				// Call thumbMoved as the selection update doesn't automatically do it.
+				[self thumbMoved:startThumb targetPosition:touchPoint caretRect:startThumb.frame];
 			} else if ([self comparePosition:pp toPosition:end] == NSOrderedDescending) {
 				// pos > end
 				end = pp;
-				//[self thumbMoved:endThumb targetPosition:touchPoint];
+				// Call thumbMoved as the selection update doesn't automatically do it.
+				[self thumbMoved:endThumb targetPosition:touchPoint caretRect:endThumb.frame];
+			} else {
+				// Update the loupe position while we're inside the selection.
+				CGRect rangeRect = [self firstRectForRange:selection];
+				CGPoint center   = CGPointMake(touchPoint.x, CGRectGetMidY(rangeRect));
+				CGPoint top      = CGPointMake(touchPoint.x, CGRectGetMinY(rangeRect));
+				[_loupe setTouchPoint:center forAnchorPoint:top];
 			}
 			
 			OUEFTextRange *range = [[OUEFTextRange alloc] initWithRange:NSMakeRange([start index], [end index] - [start index]) generation:generation];

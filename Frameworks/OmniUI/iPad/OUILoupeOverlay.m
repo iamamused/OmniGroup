@@ -48,33 +48,42 @@ RCS_ID("$Id$");
 
 @synthesize subjectView;
 
-/* Set the touch point, which is in the subject view's bounds coordinate system */
-- (void)setTouchPoint:(CGPoint)touchPoint;
-{
-    if (_mode == OUILoupeOverlayNone) {
-        /* The "none" mode is special-cased because we don't want to clear out the old image and frame while dismissing the loupe. So the loupeFramePosition values probably refer to a previous mode's geometry here. */
+- (void)setTouchPoint:(CGPoint)touchPoint forAnchorPoint:(CGPoint)anchorPoint;
+{	
+	if (_mode == OUILoupeOverlayNone) {
+		/* The "none" mode is special-cased because we don't want to clear out the old image and frame while dismissing the loupe. So the loupeFramePosition values probably refer to a previous mode's geometry here. */
+		
+		CGPoint centerPoint = anchorPoint;
+		if (subjectView)
+			centerPoint = [subjectView convertPoint:centerPoint toView:[self superview]];
+		
+		self.center = centerPoint;
+	} else {
+		CGRect newFrame;
+		newFrame.origin.x = round(anchorPoint.x - loupeFramePosition.origin.x);
+		newFrame.origin.y = round(anchorPoint.y - loupeFramePosition.origin.y);
+		newFrame.size = loupeFramePosition.size;
+		
+		if (subjectView)
+			newFrame = [subjectView convertRect:newFrame toView:[self superview]];
+		
+		self.frame = newFrame;
+	}
 
-        CGPoint centerPoint = touchPoint;
-        if (subjectView)
-            centerPoint = [subjectView convertPoint:centerPoint toView:[self superview]];
-        
-        self.center = centerPoint;
-    } else {
-        CGRect newFrame;
-        newFrame.origin.x = round(touchPoint.x - loupeFramePosition.origin.x);
-        newFrame.origin.y = round(touchPoint.y - loupeFramePosition.origin.y);
-        newFrame.size = loupeFramePosition.size;
-        
-        if (subjectView)
-            newFrame = [subjectView convertRect:newFrame toView:[self superview]];
-        
-        self.frame = newFrame;
-    }        
-        
-    _touchPoint = touchPoint;
+	
+	_touchPoint = touchPoint;
+	_anchorPoint = anchorPoint;
     
     // Need to redisplay because our contents depend on the touch point
     [self setNeedsDisplay];
+}
+
+
+/* Set the touch point, which is in the subject view's bounds coordinate system */
+- (void)setTouchPoint:(CGPoint)touchPoint;
+{
+	// Anchor the loupe at the same point as the touch.
+	[self setTouchPoint:touchPoint forAnchorPoint:touchPoint];    
 }
 
 @synthesize touchPoint = _touchPoint;
@@ -150,18 +159,18 @@ RCS_ID("$Id$");
                 loupeFrameImage = [[plainImage stretchableImageWithLeftCapWidth:60 topCapHeight:0] retain];
                 CGSize loupeImageSize;
                 loupeImageSize = [plainImage size];
-                CGRect contour = (CGRect){ {14, 58}, { 128, 114 } };
-                loupeImageSize.width += 64;
-                contour.size.width += 64;
+                CGRect contour = (CGRect){ {5,8}, { loupeImageSize.width - 16, loupeImageSize.height - 5 - 24 } };
+                loupeImageSize.width += 0;
+                contour.size.width += 0;
                 CGMutablePathRef ring = CGPathCreateMutable();
-                OQAddRoundedRect(ring, contour, 17);
+                OQAddRoundedRect(ring, contour, 6);
                 loupeClipPath = CGPathCreateCopy(ring);
                 CFRelease(ring);
                 loupeTouchPoint.x = CGRectGetMidX(contour);
                 loupeTouchPoint.y = CGRectGetMidY(contour);
                 loupeFramePosition.size = loupeImageSize;
                 loupeFramePosition.origin.x = loupeTouchPoint.x;
-                loupeFramePosition.origin.y = loupeImageSize.height + 20;
+                loupeFramePosition.origin.y = loupeImageSize.height + 0;
                 break;
             }
         }
