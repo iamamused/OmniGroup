@@ -132,6 +132,7 @@ static id do_init(OUIEditableFrame *self)
     self->flags.showSelectionThumbs = 1;
     
     self.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    self->tapSelectionGranularity = UITextGranularityWord;
 
     // You can turn autocorrection on, but it's currently pretty broken: see RADAR 7881864 (dup of 7696512), 7914098 (dup of 7673939).
     self.autocorrectionType = UITextAutocorrectionTypeNo;
@@ -2726,35 +2727,44 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 	
     CGPoint p = [r locationInView:self];
     OUEFTextPosition *pp = (OUEFTextPosition *)[self closestPositionToPoint:p];
-	
+
     DEBUG_TEXT(@"active with state %d at %@ with required taps %d, number of touches %d", r.state, pp, [r numberOfTapsRequired], [r numberOfTouches]);
 
+    // Reset the caret solidity timer even if we don't otherwise react to this tap, to indicate we did at least receive it
+    [self _setSolidCaret:0];
+	
     if (pp) {
+        id <UITextInputTokenizer> tok = [self tokenizer];
+        
         if (r.numberOfTapsRequired > 1 && selection) {
-			UITextRange *r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
+			UITextRange *r = [tok rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
 			if (r == nil) {
-				r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionBackward];
+				r = [tok rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionBackward];
 			}
             [self setSelectedTextRange:r];
 			flags.showingEditMenu = 1;
         } else {
-			// UITextView selects beginning and end of word only on single tap.
-			int idx = pp.index;
-			OUEFTextRange *word = (OUEFTextRange *)[[self tokenizer] rangeEnclosingPosition:pp withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
-			if (word) {
-				int start = [(OUEFTextPosition *)word.start index];
-				int end = [(OUEFTextPosition *)word.end index];
-				idx = (idx <= start + ( ( end - start ) / 2 )) ? start : end;
-			}
-			OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithRange:NSMakeRange(idx, 0) generation:generation];
-			
-			int selStart = [(OUEFTextPosition *)selection.start index];
-			int selEnd = [(OUEFTextPosition *)selection.end index];
-			if (selStart == idx && selEnd == idx ) {
-				// Show the edit menu if we're re-tapping in the same location.
-				flags.showingEditMenu = 1;
-			} 
-			
+            if (tapSelectionGranularity != UITextGranularityCharacter) {
+                // UITextView selects beginning or end of word on single tap.
+                if (![tok isPosition:pp atBoundary:tapSelectionGranularity inDirection:UITextStorageDirectionForward] &&
+                    ![tok isPosition:pp atBoundary:tapSelectionGranularity inDirection:UITextStorageDirectionForward]) {
+                    // Move pp to the nearest word boundary. We can't simply use -rangeEnclosingPosition: because we want to move to a word boundary even if the tap was outside of any words.
+                    // We also need to act correctly if tapped in a non-word area at the beginning or end of the text.
+                    OUEFTextPosition *earlier = (OUEFTextPosition *)[tok positionFromPosition:pp toBoundary:tapSelectionGranularity inDirection:UITextStorageDirectionBackward];
+                    OUEFTextPosition *later = (OUEFTextPosition *)[tok positionFromPosition:pp toBoundary:tapSelectionGranularity inDirection:UITextStorageDirectionForward];
+                    if (earlier && later) {
+                        if (abs([self offsetFromPosition:pp toPosition:earlier]) < abs([self offsetFromPosition:pp toPosition:later]))
+                            pp = earlier;
+                        else
+                            pp = later;
+                    } else if (earlier)
+                        pp = earlier;
+                    else if (later)
+                        pp = later;
+                }
+            }
+            
+            OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithStart:pp end:pp];
             [self setSelectedTextRange:newSelection];
             [newSelection release];
 			
@@ -2766,7 +2776,6 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
         }
     }
     
-    [self _setSolidCaret:0];
 }
 
 - (void)_disableDoubleTapInspectSelection {
