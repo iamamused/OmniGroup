@@ -2853,7 +2853,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			// The the motion is quick and not paused at teh end it should select the word boundary.
 			// TODO: The delay on the selector should be adjusted.  
 			[OUIEditableFrame cancelPreviousPerformRequestsWithTarget:self selector:@selector(_disableSelectionInspectSnap) object:nil];
-			[self performSelector:@selector(_disableSelectionInspectSnap) withObject:nil afterDelay: 2.0f];
+			[self performSelector:@selector(_disableSelectionInspectSnap) withObject:nil afterDelay: 0.45f];
 			
 		}
     }
