@@ -914,7 +914,7 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
         [_loupe setSubjectView:self];
         [[[[self window] subviews] lastObject] addSubview:_loupe];
     }
-    
+
     [self _setSolidCaret:1];
 }
 
@@ -2834,7 +2834,11 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     
     // We want to update the loupe's touch point before the mode, so that when it's brought on screen it doesn't animate distractingly out from some other location.
     
-    if (state == UIGestureRecognizerStateChanged) {
+    //if (state == UIGestureRecognizerStateChanged) {
+	// Commented out the UIGestureRecognizerStateChanged check since 
+	// this should be updated to porperly position the loupes and selections
+	// for the beginning and end as well.
+	
         if (selection && [selection isEmpty]) {
 
 			// Loupe touchPoint and anchorPoint will be the same for caret selection.
@@ -2891,7 +2895,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			[self performSelector:@selector(_disableSelectionInspectSnap) withObject:nil afterDelay: 0.45f];
 			
 		}
-    }
+    //}
     
     /* UITextView has two selection inspecting/altering modes: caret and range. If you have a caret, you get a round selection inspection that just alters the inspection point. If you have a range, then the end of the range that your tap is closest to is altered and a rectangular selection inspector is shown. */
     if (selection) {
