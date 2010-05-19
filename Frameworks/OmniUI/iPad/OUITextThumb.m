@@ -50,7 +50,7 @@ RCS_ID("$Id$");
     dragMe.enabled = YES;
     [self addGestureRecognizer:dragMe];
     [dragMe release];
-    
+	    
     return self;
 }
 
@@ -182,7 +182,7 @@ RCS_ID("$Id$");
     OUIEditableFrame *parent = (OUIEditableFrame *)(self.superview);
     UIGestureRecognizerState st = gestureRecognizer.state;
     CGPoint delta = [gestureRecognizer translationInView:parent];
- 
+	
     // UIPanGestureRecognizer seems to be kind of sloppy about its initial offset. Not sure if this'll be a problem in practice but it's noticeable in the simulator. Might need to do our own translation calculations.
     // NSLog(@"pan: %@, delta=%@", gestureRecognizer, NSStringFromCGPoint(delta));
     
@@ -199,6 +199,18 @@ RCS_ID("$Id$");
         [parent thumbEnded:self normally:(st == UIGestureRecognizerStateEnded? YES:NO) caretRect:self.frame];
         touchdownPoint = (CGPoint){ nan(NULL), nan(NULL) };
     }
+}
+
+// TODO can we use a gesture recognizer for this?
+// The OUI classes generally use gestures instead of direct touch methods.
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
+{
+	CGRect myBounds = self.bounds;
+	/* The point below is the center of the caret rectangle we draw. We want to use that rather than the baseline point or the thumb point to allow the maximum finger slop before the text view selects a different line. */
+    OUIEditableFrame *parent = (OUIEditableFrame *)(self.superview);
+	touchdownPoint = [self convertPoint:(CGPoint){0, 2 * myBounds.origin.y + myBounds.size.height - ascent/2} toView:parent];
+	[parent thumbBegan:self caretRect:self.frame];
+    [super touchesBegan:touches withEvent:event];
 }
 
 @end

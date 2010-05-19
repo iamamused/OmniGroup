@@ -916,6 +916,11 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     }
 
     [self _setSolidCaret:1];
+	
+	// Disable the long press gesture
+	// TODO should we disable al of the gestures?
+	// TODO it would also be good if the gestures used an enum to identify which is which in the array
+	[(UILongPressGestureRecognizer *)actionRecognizers[2] setEnabled:NO];
 }
 
 - (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt caretRect:(CGRect)caretRect;
@@ -977,6 +982,10 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     _loupe.mode = OUILoupeOverlayNone;
     [self _setSolidCaret:-1];
 	flags.showingEditMenu = 1;
+	
+	// Enable the long press gesture, @see thumbBegan:
+	[(UILongPressGestureRecognizer *)actionRecognizers[2] setEnabled:YES];
+	
 }
 
 - (id <NSObject>)attribute:(NSString *)attr inRange:(OUEFTextRange *)r;
