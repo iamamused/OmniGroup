@@ -187,30 +187,41 @@ RCS_ID("$Id$");
     // NSLog(@"pan: %@, delta=%@", gestureRecognizer, NSStringFromCGPoint(delta));
     
     if (st == UIGestureRecognizerStateBegan) {
-        CGRect myBounds = self.bounds;
-        /* The point below is the center of the caret rectangle we draw. We want to use that rather than the baseline point or the thumb point to allow the maximum finger slop before the text view selects a different line. */
-        touchdownPoint = [self convertPoint:(CGPoint){0, 2 * myBounds.origin.y + myBounds.size.height - ascent/2} toView:parent];
-        [parent thumbBegan:self caretRect:self.frame];
+        // This code moved to touchesBegan as we want it to fire when the touch starts.
+		// The pan gesture doesn't begin until there is movement.
     } else {
         [parent thumbMoved:self targetPosition:(CGPoint){ touchdownPoint.x + delta.x, touchdownPoint.y + delta.y } caretRect:self.frame];
     }
     
     if (st == UIGestureRecognizerStateEnded || st == UIGestureRecognizerStateCancelled) {
-        [parent thumbEnded:self normally:(st == UIGestureRecognizerStateEnded? YES:NO) caretRect:self.frame];
+		//TRICKY: this is replicated in touchesEnded however the pan seems to cancel the
+		// ended method so we call it here too and ensure it ends.
+		[parent thumbEnded:self normally:(st == UIGestureRecognizerStateEnded? YES:NO) caretRect:self.frame];
         touchdownPoint = (CGPoint){ nan(NULL), nan(NULL) };
     }
 }
 
-// TODO can we use a gesture recognizer for this?
-// The OUI classes generally use gestures instead of direct touch methods.
+// TODO can we use another gesture recognizer for this?
+// The OUI classes generally use gestures instead of direct touch methods but the tap method
+// only fires after the lift, not on press.
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event;
 {
+	NSLog(@"began");
 	CGRect myBounds = self.bounds;
 	/* The point below is the center of the caret rectangle we draw. We want to use that rather than the baseline point or the thumb point to allow the maximum finger slop before the text view selects a different line. */
     OUIEditableFrame *parent = (OUIEditableFrame *)(self.superview);
 	touchdownPoint = [self convertPoint:(CGPoint){0, 2 * myBounds.origin.y + myBounds.size.height - ascent/2} toView:parent];
 	[parent thumbBegan:self caretRect:self.frame];
     [super touchesBegan:touches withEvent:event];
+}
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event;
+{
+	NSLog(@"ended");
+	/* The point below is the center of the caret rectangle we draw. We want to use that rather than the baseline point or the thumb point to allow the maximum finger slop before the text view selects a different line. */
+    OUIEditableFrame *parent = (OUIEditableFrame *)(self.superview);
+	[parent thumbEnded:self normally:YES caretRect:self.frame];
+	touchdownPoint = (CGPoint){ nan(NULL), nan(NULL) };
+    [super touchesEnded:touches withEvent:event];
 }
 
 @end

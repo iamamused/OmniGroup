@@ -918,9 +918,10 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     [self _setSolidCaret:1];
 	
 	// Disable the long press gesture
-	// TODO should we disable al of the gestures?
 	// TODO it would also be good if the gestures used an enum to identify which is which in the array
-	[(UILongPressGestureRecognizer *)actionRecognizers[2] setEnabled:NO];
+	for (int i = 0; i < EF_NUM_ACTION_RECOGNIZERS; i++) {
+		[(UIGestureRecognizer *)actionRecognizers[i] setEnabled:NO];
+	}
 }
 
 - (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt caretRect:(CGRect)caretRect;
@@ -983,8 +984,10 @@ static CGRect _textRectForViewRect(OUIEditableFrame *self, CGPoint lastLineOrigi
     [self _setSolidCaret:-1];
 	flags.showingEditMenu = 1;
 	
-	// Enable the long press gesture, @see thumbBegan:
-	[(UILongPressGestureRecognizer *)actionRecognizers[2] setEnabled:YES];
+	// Enable the gestures, @see thumbBegan:
+	for (int i = 0; i < EF_NUM_ACTION_RECOGNIZERS; i++) {
+		[(UIGestureRecognizer *)actionRecognizers[i] setEnabled:YES];
+	}
 	
 }
 
@@ -2668,7 +2671,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     
     _caretSolidity += delta;
     
-    // NSLog(@"Caret solidity %+d  -->  %d", delta, _caretSolidity);
+	NSLog(@"Caret solidity %+d  -->  %d", delta, _caretSolidity);
     
     if (_caretSolidity == 0) {
         /* Make sure the expiration timer is scheduled far enough out */
@@ -2704,7 +2707,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
     [_solidityTimer autorelease];
     _solidityTimer = nil;
     
-    // NSLog(@"Solidity timer expired; _caretSolidity = %d", _caretSolidity);
+    NSLog(@"Solidity timer expired; _caretSolidity = %d", _caretSolidity);
     
     if (_caretSolidity > 0) {
         // Timer expired, but we're solid for some other reason.
@@ -2820,7 +2823,7 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
             _loupe = [[OUILoupeOverlay alloc] initWithFrame:[self frame]];
             [_loupe setSubjectView:self];
             [[[[self window] subviews] lastObject] addSubview:_loupe];
-       }
+        }
 
 		if (flags.doubleTapInspectSelection == 1) {
 			UITextRange *r = [[self tokenizer] rangeEnclosingPosition:selection.start withGranularity:UITextGranularityWord inDirection:UITextStorageDirectionForward];
@@ -2837,8 +2840,9 @@ CGPoint closestPointInLine(CTLineRef line, CGPoint lineOrigin, CGPoint test, NSR
 			OUEFTextRange *newSelection = [[OUEFTextRange alloc] initWithStart:pp end:pp];
             [self setSelectedTextRange:newSelection];
             [newSelection release];			
-			[self _setSolidCaret:1];
 		}
+		
+		[self _setSolidCaret:1];
     }
     
     // We want to update the loupe's touch point before the mode, so that when it's brought on screen it doesn't animate distractingly out from some other location.
